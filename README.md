@@ -21,20 +21,20 @@
 | 言語 | TypeScript 7.0.2（strict） |
 | ビルド | Vite 8.3.5 |
 | テスト | Vitest 5.0.5 |
-| 開発環境 | Node.js 24 以上（比較スクリプトが Node の型除去機能を使うため） |
+| 開発環境 | Node.js 24 以上（比較スクリプトが Node の型除去機能を使うため）、pnpm 10 |
 | 動作ブラウザ | WebGL が使えるモダンブラウザ（PC・スマートフォン） |
 
-バックエンド・DB・外部画像アセットは使っていません。`dist/` を静的ホスティング（Cloudflare Pages など）にそのまま置けます。
+バックエンド・DB・外部画像アセットは使っていません。`dist/` を静的ホスティング（Cloudflare Pages など）にそのまま置けます。Cloudflare Pages 向けのセキュリティヘッダーは `public/_headers` に書いてあり、ビルド時に `dist/` へコピーされます。
 
 ## セットアップとコマンド
 
 ```sh
-npm install          # 依存のインストール（package-lock.json でバージョン固定）
-npm run dev          # 開発サーバー（http://localhost:5173）
-npm run test         # ユニットテスト
-npm run typecheck    # 型チェック（src・tests と scripts の両方）
-npm run build        # 型チェック後に本番ビルド（dist/ に出力）
-npm run preview      # ビルド結果のプレビュー
+pnpm install         # 依存のインストール（pnpm-lock.yaml でバージョン固定）
+pnpm dev             # 開発サーバー（http://localhost:5173）
+pnpm test            # ユニットテスト
+pnpm typecheck       # 型チェック（src・tests と scripts の両方）
+pnpm build           # 型チェック後に本番ビルド（dist/ に出力）
+pnpm preview         # ビルド結果のプレビュー
 ```
 
 混色方式の比較スクリプト（開発用）：
