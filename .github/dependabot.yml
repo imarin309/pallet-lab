@@ -1,0 +1,24 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      timezone: Asia/Tokyo
+    # 公開直後に乗っ取られたバージョンを取り込まないよう、出てから1週間は待つ
+    cooldown:
+      default-days: 7
+    # メジャー更新は壊れやすいので1つずつ PR にし、それ以外はまとめてレビューの手間を減らす
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      timezone: Asia/Tokyo
+    cooldown:
+      default-days: 7
