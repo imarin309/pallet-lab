@@ -8,6 +8,8 @@
     "dev": "vite",
     "build": "pnpm typecheck && vite build",
     "preview": "vite preview",
+    "preview:worker": "pnpm build && wrangler dev",
+    "deploy:worker": "pnpm build && wrangler deploy",
     "typecheck": "tsc --noEmit && tsc --noEmit -p scripts",
     "test": "vitest run"
   },
@@ -18,6 +20,13 @@
     "@types/node": "^24.19.2",
     "typescript": "^7.0.2",
     "vite": "^8.3.5",
-    "vitest": "^5.0.5"
+    "vitest": "^5.0.5",
+    "wrangler": "4.149.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "workerd"
+    ]
   }
 }
