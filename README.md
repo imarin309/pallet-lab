@@ -36,7 +36,7 @@ pnpm typecheck       # 型チェック（src・tests と scripts の両方）
 pnpm build           # 型チェック後に本番ビルド（dist/ に出力）
 pnpm preview         # ビルド結果のプレビュー
 pnpm preview:worker  # 本番と同じ Workers の配信で確認（_headers のヘッダーも付く）
-pnpm deploy          # 手元から Cloudflare Workers へデプロイ（要 wrangler login）
+pnpm deploy:worker   # 手元から Cloudflare Workers へデプロイ（要 wrangler login）
 ```
 
 ## デプロイ
