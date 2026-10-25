@@ -1,0 +1,8 @@
+{
+  // Node の型はブラウザ向けの src に混ぜたくないので、スクリプトだけ別に検査する
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "types": ["node"]
+  },
+  "include": ["."]
+}
