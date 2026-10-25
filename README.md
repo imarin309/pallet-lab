@@ -24,7 +24,7 @@
 | 開発環境 | Node.js 24 以上（比較スクリプトが Node の型除去機能を使うため）、pnpm 10 |
 | 動作ブラウザ | WebGL が使えるモダンブラウザ（PC・スマートフォン） |
 
-バックエンド・DB・外部画像アセットは使っていません。`dist/` を静的ホスティング（Cloudflare Pages など）にそのまま置けます。Cloudflare Pages 向けのセキュリティヘッダーは `public/_headers` に書いてあり、ビルド時に `dist/` へコピーされます。
+バックエンド・DB・外部画像アセットは使っていません。Cloudflare Workers の静的アセット配信で公開します（`wrangler.jsonc`）。セキュリティヘッダーは `public/_headers` に書いてあり、ビルド時に `dist/` へコピーされます。
 
 ## セットアップとコマンド
 
@@ -35,7 +35,19 @@ pnpm test            # ユニットテスト
 pnpm typecheck       # 型チェック（src・tests と scripts の両方）
 pnpm build           # 型チェック後に本番ビルド（dist/ に出力）
 pnpm preview         # ビルド結果のプレビュー
+pnpm preview:worker  # 本番と同じ Workers の配信で確認（_headers のヘッダーも付く）
+pnpm deploy          # 手元から Cloudflare Workers へデプロイ（要 wrangler login）
 ```
+
+## デプロイ
+
+`main` に push すると、Cloudflare の Workers Builds が自動でビルドしてデプロイします。Cloudflare 側の設定は次のとおりです。
+
+| 項目 | 値 |
+| --- | --- |
+| ビルドコマンド | `pnpm run build` |
+| デプロイコマンド | `pnpm exec wrangler deploy` |
+| 環境変数 | `NODE_VERSION=24` |
 
 混色方式の比較スクリプト（開発用）：
 

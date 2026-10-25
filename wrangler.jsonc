@@ -1,0 +1,7 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "pallet-lab",
+  "compatibility_date": "2026-10-13",
+  // Worker のスクリプトは持たず、ビルド結果を静的ファイルとして配るだけ
+  "assets": { "directory": "./dist" }
+}
