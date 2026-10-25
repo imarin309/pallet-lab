@@ -80,7 +80,7 @@ export class ResultScene extends Phaser.Scene {
         )
         .setOrigin(0.5),
     ];
-    revealed.forEach((text) => text.setAlpha(0));
+    for (const text of revealed) text.setAlpha(0);
 
     this.tweens.addCounter({
       from: 0,

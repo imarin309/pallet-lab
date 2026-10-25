@@ -4,8 +4,8 @@ Phaser 4 + TypeScript + Vite の調色パズル。仕様は `docs/` を参照（
 
 ## コマンド
 
-- `pnpm test` / `pnpm typecheck` / `pnpm build`（型チェック込み） / `pnpm dev`
-- 変更後は test と build を通す
+- `pnpm test` / `pnpm lint` / `pnpm typecheck` / `pnpm build`（型チェック込み） / `pnpm dev`
+- 変更後は test・lint・build を通す（CI でも同じものを実行する）
 
 ## 構成の決まり
 
