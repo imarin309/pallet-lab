@@ -3,7 +3,8 @@
 // @vitest-environment-options {"resources":"usable"}
 import Phaser from 'phaser';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { GameScene } from '../src/scenes/GameScene.ts';
+import { FinalResultScene } from '../src/scenes/FinalResultScene.ts';
+import { GameScene, type RoundResult } from '../src/scenes/GameScene.ts';
 import { ResultScene } from '../src/scenes/ResultScene.ts';
 import { TitleScene } from '../src/scenes/TitleScene.ts';
 import { CHARACTER_TEXTURE } from '../src/ui/common.ts';
@@ -28,7 +29,7 @@ beforeEach(() => {
     banner: false,
     autoFocus: false,
     audio: { noAudio: true },
-    scene: [TitleScene, GameScene, ResultScene],
+    scene: [TitleScene, GameScene, ResultScene, FinalResultScene],
   });
 });
 
@@ -67,6 +68,33 @@ it('タイトルから調色して結果を見て、次のステージへ進め�
 
   press(await waitForScene('ResultScene'), '次のステージ');
 
-  await vi.waitFor(() => expect(game.scene.getScene('GameScene').scene.settings.data).toEqual({ stageIndex: 1 }));
+  await vi.waitFor(() => expect(game.scene.getScene('GameScene').scene.settings.data).toMatchObject({ stageIndex: 1 }));
+  expect(errors).toEqual([]);
+});
+
+it('5ステージを終えると結果発表へ進み、再挑戦した結果は最後のものだけが残る', async () => {
+  press(await waitForScene('TitleScene'), 'スタート');
+
+  const playOneDrop = async (label: string) => {
+    const gameScene = await waitForScene('GameScene');
+    press(gameScene, label);
+    press(gameScene, '完成！');
+    return waitForScene('ResultScene');
+  };
+
+  press(await playOneDrop('黒'), 'もう一度');
+  press(await playOneDrop('緑'), '次のステージ');
+  for (let stage = 2; stage <= 4; stage++) press(await playOneDrop('緑'), '次のステージ');
+  press(await playOneDrop('緑'), '結果発表へ');
+
+  const finalScene = await waitForScene('FinalResultScene');
+  const { results } = finalScene.scene.settings.data as { results: RoundResult[] };
+  expect(results.map((result) => result.stageIndex)).toEqual([0, 1, 2, 3, 4]);
+  expect(results[0].history).toEqual(['green']);
+
+  press(finalScene, 'もう一度遊ぶ');
+  await vi.waitFor(() =>
+    expect(game.scene.getScene('GameScene').scene.settings.data).toEqual({ stageIndex: 0, results: [] }),
+  );
   expect(errors).toEqual([]);
 });

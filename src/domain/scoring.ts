@@ -56,6 +56,15 @@ export function rankForScore(score: number): Rank {
 
 export const RANK_STARS: Record<Rank, number> = { MASTER: 3, EXPERT: 2, APPRENTICE: 1, RETRY: 0 };
 
+export type RunSummary = { total: number; maxTotal: number; rank: Rank };
+
+// 1ステージと同じ基準で測れるよう、総合ランクは平均点で決める。平均も scoreColor と同じく切り捨てる
+export function summarizeRun(scores: readonly number[]): RunSummary {
+  const total = scores.reduce((sum, score) => sum + score, 0);
+  const average = scores.length === 0 ? 0 : Math.floor(total / scores.length);
+  return { total, maxTotal: scores.length * 100, rank: rankForScore(average) };
+}
+
 // これより小さい色差は、並べてもほとんど見分けられない
 const INDISTINGUISHABLE_DELTA_E = 3;
 const SLIGHT_DIFFERENCE = 10;
