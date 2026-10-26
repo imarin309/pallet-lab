@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { mixColor } from '../src/domain/paintMixing.ts';
-import { rgbToLab } from '../src/domain/scoring.ts';
+import { deltaE, rgbToLab } from '../src/domain/scoring.ts';
 import { MAX_DROPS } from '../src/domain/gameRules.ts';
-import { STAGES, targetColorOf } from '../src/domain/stages.ts';
-import { PIGMENTS, type MixHistory, type RgbColor } from '../src/domain/types.ts';
+import { COURSES, pickStages, targetColorOf } from '../src/domain/stages.ts';
+import { DIFFICULTIES, PIGMENTS, type MixHistory, type RgbColor } from '../src/domain/types.ts';
 
 function mustMix(history: MixHistory): RgbColor {
   const color = mixColor(history);
@@ -72,15 +72,58 @@ describe('mixColor', () => {
   });
 });
 
-describe('STAGES', () => {
-  it('5ステージあり、ID が重複しない', () => {
-    expect(STAGES).toHaveLength(5);
-    expect(new Set(STAGES.map((s) => s.id)).size).toBe(5);
+const ALL_STAGES = DIFFICULTIES.flatMap((difficulty) => COURSES[difficulty].stages.map((stage) => ({ difficulty, ...stage })));
+
+describe('COURSES', () => {
+  it.each(DIFFICULTIES)('%s は50問ある', (difficulty) => {
+    expect(COURSES[difficulty].stages).toHaveLength(50);
   });
 
-  it.each(STAGES)('$name のレシピは1〜8滴で、目標色は同じ混色関数から得られる', (stage) => {
+  it('ID とお題名は、難易度をまたいでも重複しない', () => {
+    expect(new Set(ALL_STAGES.map((s) => s.id)).size).toBe(ALL_STAGES.length);
+    expect(new Set(ALL_STAGES.map((s) => s.name)).size).toBe(ALL_STAGES.length);
+  });
+
+  it('塗料は PIGMENTS と同じ順に並ぶ', () => {
+    for (const difficulty of DIFFICULTIES) {
+      const { pigments } = COURSES[difficulty];
+      expect(pigments).toEqual(PIGMENTS.filter((pigment) => pigments.includes(pigment)));
+    }
+  });
+
+  it.each(ALL_STAGES)('$name のレシピは1〜8滴で、その難易度の塗料だけを使い、目標色は同じ混色関数から得られる', (stage) => {
     expect(stage.recipe.length).toBeGreaterThan(0);
     expect(stage.recipe.length).toBeLessThanOrEqual(MAX_DROPS);
+    for (const pigment of stage.recipe) expect(COURSES[stage.difficulty].pigments).toContain(pigment);
     expect(targetColorOf(stage)).toEqual(mixColor(stage.recipe));
+  });
+
+  // 色が近すぎると、名前が違うだけの同じお題になってしまう
+  it.each(DIFFICULTIES)('%s のお題どうしは、見て分かるほど色が違う', (difficulty) => {
+    const targets = COURSES[difficulty].stages.map(targetColorOf);
+    for (let i = 0; i < targets.length; i++) {
+      for (let j = i + 1; j < targets.length; j++) {
+        expect(deltaE(targets[i], targets[j])).toBeGreaterThanOrEqual(8);
+      }
+    }
+  });
+});
+
+describe('pickStages', () => {
+  const stages = COURSES.beginner.stages;
+
+  it('指定した数だけ、重複なしで選ぶ', () => {
+    const picked = pickStages(stages, 5);
+    expect(picked).toHaveLength(5);
+    expect(new Set(picked).size).toBe(5);
+    for (const stage of picked) expect(stages).toContain(stage);
+  });
+
+  it('乱数を固定すれば、同じ問題が選ばれる', () => {
+    expect(pickStages(stages, 3, () => 0)).toEqual(stages.slice(0, 3));
+  });
+
+  it('候補より多くは選ばない', () => {
+    expect(pickStages(stages.slice(0, 2), 5)).toHaveLength(2);
   });
 });

@@ -1,6 +1,5 @@
 import Phaser from 'phaser';
 import { RANK_STARS, hintFor, rankForScore, type Rank } from '../domain/scoring.ts';
-import { STAGES } from '../domain/stages.ts';
 import { CHARACTER_TEXTURE, COLORS, GAME_WIDTH, TEXT_COLORS, TextButton, setupCamera, textStyle, toHex } from '../ui/common.ts';
 import { DropDots } from '../ui/dropDots.ts';
 import type { GameSceneData, ResultSceneData, RoundResult } from './GameScene.ts';
@@ -20,8 +19,8 @@ const SCORE_COUNT_MS = 900;
 const bestScoreKey = (stageId: string) => `bestScore:${stageId}`;
 
 export class ResultScene extends Phaser.Scene {
+  private run!: GameSceneData;
   private result!: RoundResult;
-  private results: readonly RoundResult[] = [];
   private leaving = false;
 
   constructor() {
@@ -29,23 +28,23 @@ export class ResultScene extends Phaser.Scene {
   }
 
   init(data: ResultSceneData): void {
+    this.run = data.run;
     this.result = data.result;
-    this.results = data.results;
     this.leaving = false;
   }
 
   create(): void {
     setupCamera(this);
-    const { stageIndex, target, actual, history, score } = this.result;
-    const stage = STAGES[stageIndex];
-    const isLastStage = stageIndex === STAGES.length - 1;
+    const { stage, target, actual, history, score } = this.result;
+    const { stages, stageIndex, results } = this.run;
+    const isLastStage = stageIndex === stages.length - 1;
 
     const previousBest = this.registry.get(bestScoreKey(stage.id)) as number | undefined;
     const isNewBest = previousBest === undefined || score > previousBest;
     if (isNewBest) this.registry.set(bestScoreKey(stage.id), score);
 
     this.add
-      .text(GAME_WIDTH / 2, 36, `STAGE ${stageIndex + 1} / ${STAGES.length}`, textStyle(20, TEXT_COLORS.subInk))
+      .text(GAME_WIDTH / 2, 36, `STAGE ${stageIndex + 1} / ${stages.length}`, textStyle(20, TEXT_COLORS.subInk))
       .setOrigin(0.5);
     this.add.text(GAME_WIDTH / 2, 70, stage.name, textStyle(28, TEXT_COLORS.ink, 'mincho')).setOrigin(0.5);
 
@@ -103,14 +102,13 @@ export class ResultScene extends Phaser.Scene {
     });
 
     // 再挑戦では今回の結果を積まないので、次へ進んだときの結果で上書きされる
-    const retryData: GameSceneData = { stageIndex, results: this.results };
-    const settled = [...this.results, this.result];
-    new TextButton(this, 130, 720, 190, 68, 'もう一度', () => this.goTo('GameScene', retryData), 'secondary');
+    const settled = [...results, this.result];
+    new TextButton(this, 130, 720, 190, 68, 'もう一度', () => this.goTo('GameScene', this.run), 'secondary');
     if (isLastStage) {
-      const finalData: FinalResultSceneData = { results: settled };
+      const finalData: FinalResultSceneData = { difficulty: this.run.difficulty, results: settled };
       new TextButton(this, 350, 720, 190, 68, '結果発表へ', () => this.goTo('FinalResultScene', finalData));
     } else {
-      const nextData: GameSceneData = { stageIndex: stageIndex + 1, results: settled };
+      const nextData: GameSceneData = { ...this.run, stageIndex: stageIndex + 1, results: settled };
       new TextButton(this, 350, 720, 190, 68, '次のステージ', () => this.goTo('GameScene', nextData));
     }
   }

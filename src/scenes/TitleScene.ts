@@ -1,8 +1,9 @@
 import Phaser from 'phaser';
 import { PIGMENT_COLORS } from '../domain/paintMixing.ts';
-import { PIGMENTS } from '../domain/types.ts';
+import { COURSES } from '../domain/stages.ts';
+import { DIFFICULTIES, type Difficulty, PIGMENTS } from '../domain/types.ts';
 import { CHARACTER_TEXTURE, COLORS, GAME_WIDTH, TEXT_COLORS, TextButton, setupCamera, textStyle, toHex } from '../ui/common.ts';
-import type { GameSceneData } from './GameScene.ts';
+import { newRun } from './GameScene.ts';
 
 const RULES = [
   'お題と同じ色を、絵の具を混ぜて作ろう。',
@@ -59,11 +60,18 @@ export class TitleScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
 
-    new TextButton(this, GAME_WIDTH / 2, 732, 260, 68, 'スタート', () => {
-      if (this.leaving) return;
-      this.leaving = true;
-      const data: GameSceneData = { stageIndex: 0, results: [] };
-      this.scene.start('GameScene', data);
+    this.add.text(GAME_WIDTH / 2, 692, '難易度を選んでスタート', textStyle(16, TEXT_COLORS.subInk)).setOrigin(0.5);
+    DIFFICULTIES.forEach((difficulty, index) => {
+      const x = GAME_WIDTH / 2 + (index - 1) * 150;
+      const { label, pigments } = COURSES[difficulty];
+      new TextButton(this, x, 735, 136, 56, label, () => this.start(difficulty));
+      this.add.text(x, 779, `絵の具 ${pigments.length}色`, textStyle(14, TEXT_COLORS.subInk)).setOrigin(0.5);
     });
+  }
+
+  private start(difficulty: Difficulty): void {
+    if (this.leaving) return;
+    this.leaving = true;
+    this.scene.start('GameScene', newRun(difficulty));
   }
 }

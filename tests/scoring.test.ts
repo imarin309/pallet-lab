@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { PIGMENT_COLORS, mixColor } from '../src/domain/paintMixing.ts';
 import { deltaE, hintFor, rankForScore, scoreColor, summarizeRun } from '../src/domain/scoring.ts';
-import { STAGES, targetColorOf } from '../src/domain/stages.ts';
-import { PIGMENTS, type RgbColor } from '../src/domain/types.ts';
+import { COURSES, targetColorOf } from '../src/domain/stages.ts';
+import { DIFFICULTIES, type RgbColor } from '../src/domain/types.ts';
+
+const ALL_STAGES = DIFFICULTIES.flatMap((difficulty) => COURSES[difficulty].stages.map((stage) => ({ difficulty, ...stage })));
 
 const red: RgbColor = { r: 205, g: 35, b: 45 };
 const blue: RgbColor = { r: 20, g: 80, b: 190 };
@@ -42,13 +44,13 @@ describe('scoreColor', () => {
     expect(scoreColor(red, blue)).toBe(0);
   });
 
-  it.each(STAGES)('$name は単色1滴だけでは MASTER にならない', (stage) => {
-    for (const pigment of PIGMENTS) {
+  it.each(ALL_STAGES)('$name はその難易度の塗料の単色1滴だけでは MASTER にならない', (stage) => {
+    for (const pigment of COURSES[stage.difficulty].pigments) {
       expect(scoreColor(targetColorOf(stage), PIGMENT_COLORS[pigment])).toBeLessThan(90);
     }
   });
 
-  it.each(STAGES)('$name は正解レシピで100点になる', (stage) => {
+  it.each(ALL_STAGES)('$name は正解レシピで100点になる', (stage) => {
     const actual = mixColor([...stage.recipe].reverse());
     expect(actual).not.toBeNull();
     expect(scoreColor(targetColorOf(stage), actual!)).toBe(100);
