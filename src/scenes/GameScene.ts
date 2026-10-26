@@ -12,8 +12,9 @@ import {
 import { PIGMENT_COLORS, mixColor } from '../domain/paintMixing.ts';
 import { scoreColor } from '../domain/scoring.ts';
 import { STAGES, targetColorOf } from '../domain/stages.ts';
-import { PIGMENTS, type Pigment, type RgbColor, type RoundState } from '../domain/types.ts';
-import { COLORS, GAME_WIDTH, TextButton, setupCamera, textStyle, toHex } from '../ui/common.ts';
+import { type MixHistory, PIGMENTS, type Pigment, type RgbColor, type RoundState } from '../domain/types.ts';
+import { COLORS, GAME_WIDTH, TEXT_COLORS, TextButton, setupCamera, textStyle, toHex } from '../ui/common.ts';
+import { DropDots } from '../ui/dropDots.ts';
 
 export type GameSceneData = { stageIndex: number };
 
@@ -21,6 +22,7 @@ export type RoundResult = {
   stageIndex: number;
   target: RgbColor;
   actual: RgbColor;
+  history: MixHistory;
   score: number;
 };
 
@@ -63,7 +65,8 @@ export class GameScene extends Phaser.Scene {
 
   private currentSwatch!: Phaser.GameObjects.Rectangle;
   private unmixedLabel!: Phaser.GameObjects.Text;
-  private dish!: Phaser.GameObjects.Ellipse;
+  private paintPool!: Phaser.GameObjects.Ellipse;
+  private dropDots!: DropDots;
   private dropsText!: Phaser.GameObjects.Text;
   private undoText!: Phaser.GameObjects.Text;
   private undoButton!: TextButton;
@@ -89,21 +92,23 @@ export class GameScene extends Phaser.Scene {
     setupCamera(this);
     const stage = STAGES[this.stageIndex];
 
-    this.add.text(24, 24, 'Palette Lab', textStyle(20, COLORS.subText));
+    this.add.text(24, 24, 'Palette Lab', textStyle(20, TEXT_COLORS.subInk, 'mincho'));
     this.add
-      .text(GAME_WIDTH - 24, 24, `STAGE ${this.stageIndex + 1} / ${STAGES.length}`, textStyle(20, COLORS.subText))
+      .text(GAME_WIDTH - 24, 24, `STAGE ${this.stageIndex + 1} / ${STAGES.length}`, textStyle(20, TEXT_COLORS.subInk))
       .setOrigin(1, 0);
-    this.add.text(GAME_WIDTH / 2, 78, `お題：${stage.name}`, textStyle(26)).setOrigin(0.5);
+    this.add.text(GAME_WIDTH / 2, 74, `お題：${stage.name}`, textStyle(26, TEXT_COLORS.ink, 'mincho')).setOrigin(0.5);
 
     this.createSwatches();
-    this.dish = this.add.ellipse(GAME_WIDTH / 2, DISH_Y, 300, 64, COLORS.panel).setStrokeStyle(3, COLORS.panelBorder);
+    this.add.ellipse(GAME_WIDTH / 2, DISH_Y, 300, 64, COLORS.surface).setStrokeStyle(2, COLORS.line);
+    this.paintPool = this.add.ellipse(GAME_WIDTH / 2, DISH_Y, 236, 42).setStrokeStyle(1, COLORS.ink, 0.15);
     this.createPigmentButtons();
 
-    this.dropsText = this.add.text(GAME_WIDTH / 2, 652, '', textStyle(24)).setOrigin(0.5);
-    this.undoText = this.add.text(GAME_WIDTH / 2, 684, '', textStyle(16, COLORS.subText)).setOrigin(0.5);
+    this.dropDots = new DropDots(this, 642);
+    this.dropsText = this.add.text(GAME_WIDTH / 2, 670, '', textStyle(20)).setOrigin(0.5);
+    this.undoText = this.add.text(GAME_WIDTH / 2, 696, '', textStyle(15, TEXT_COLORS.subInk)).setOrigin(0.5);
 
-    this.undoButton = new TextButton(this, 130, 745, 190, 64, '1滴戻す', () => this.handleUndo(), 0x5a5a6a);
-    this.completeButton = new TextButton(this, 350, 745, 190, 64, '完成！', () => this.handleComplete());
+    this.undoButton = new TextButton(this, 130, 750, 190, 60, '1滴戻す', () => this.handleUndo(), 'secondary');
+    this.completeButton = new TextButton(this, 350, 750, 190, 60, '完成！', () => this.handleComplete());
 
     this.showColorImmediately(null);
     this.refreshControls();
@@ -112,15 +117,15 @@ export class GameScene extends Phaser.Scene {
   private createSwatches(): void {
     const leftX = 130;
     const rightX = 350;
-    // 比べやすいよう、2つの色は同じ背景・同じ大きさで並べる
-    this.add.rectangle(GAME_WIDTH / 2, SWATCH_Y + 10, 440, 250, COLORS.panel);
-    this.add.text(leftX, 112, 'お題の色', textStyle(18, COLORS.subText)).setOrigin(0.5);
-    this.add.text(rightX, 112, '現在の色', textStyle(18, COLORS.subText)).setOrigin(0.5);
-    this.add.rectangle(leftX, SWATCH_Y + 20, SWATCH_SIZE, SWATCH_SIZE, toHex(this.target)).setStrokeStyle(2, COLORS.swatchBorder);
+    // 比べやすいよう、2つの色は同じ台・同じ大きさ・同じふちで並べる
+    this.add.rectangle(GAME_WIDTH / 2, SWATCH_Y + 20, 440, 210).setRounded(12).setFillStyle(COLORS.viewingStage);
+    this.add.text(leftX, 112, 'お題の色', textStyle(18, TEXT_COLORS.subInk)).setOrigin(0.5);
+    this.add.text(rightX, 112, '現在の色', textStyle(18, TEXT_COLORS.subInk)).setOrigin(0.5);
+    this.add.rectangle(leftX, SWATCH_Y + 20, SWATCH_SIZE, SWATCH_SIZE, toHex(this.target)).setStrokeStyle(3, COLORS.chipMat);
     this.currentSwatch = this.add
-      .rectangle(rightX, SWATCH_Y + 20, SWATCH_SIZE, SWATCH_SIZE, COLORS.panelBorder)
-      .setStrokeStyle(2, COLORS.swatchBorder);
-    this.unmixedLabel = this.add.text(rightX, SWATCH_Y + 20, '未調色', textStyle(22, COLORS.subText)).setOrigin(0.5);
+      .rectangle(rightX, SWATCH_Y + 20, SWATCH_SIZE, SWATCH_SIZE, COLORS.line)
+      .setStrokeStyle(3, COLORS.chipMat);
+    this.unmixedLabel = this.add.text(rightX, SWATCH_Y + 20, '未調色', textStyle(22, TEXT_COLORS.subInk)).setOrigin(0.5);
   }
 
   private createPigmentButtons(): void {
@@ -130,7 +135,7 @@ export class GameScene extends Phaser.Scene {
       const y = PIGMENT_ROWS_Y[Math.floor(index / PIGMENTS_PER_ROW)];
       const circle = this.add
         .circle(x, y, PIGMENT_RADIUS, toHex(PIGMENT_COLORS[pigment]))
-        .setStrokeStyle(3, 0xffffff, 0.6)
+        .setStrokeStyle(2, COLORS.ink, 0.3)
         .setInteractive({ useHandCursor: true });
       const label = this.add.text(x, y + PIGMENT_RADIUS + 14, PIGMENT_LABELS[pigment], textStyle(16)).setOrigin(0.5);
       circle.on('pointerdown', () => this.handleAddDrop(pigment));
@@ -165,6 +170,7 @@ export class GameScene extends Phaser.Scene {
       stageIndex: this.stageIndex,
       target: this.target,
       actual,
+      history: this.round.history,
       score: scoreColor(this.target, actual),
     };
     this.tweens.killAll();
@@ -183,7 +189,7 @@ export class GameScene extends Phaser.Scene {
     const landingX = GAME_WIDTH / 2 + Phaser.Math.Between(-60, 60);
     const drop = this.add
       .circle(landingX, DISH_Y - 70, 11, toHex(PIGMENT_COLORS[pigment]))
-      .setStrokeStyle(2, 0xffffff, 0.5);
+      .setStrokeStyle(1.5, COLORS.ink, 0.3);
     this.tweens.add({
       targets: drop,
       y: DISH_Y + Phaser.Math.Between(-10, 10),
@@ -229,20 +235,21 @@ export class GameScene extends Phaser.Scene {
       return;
     }
     this.displayedColor = null;
-    this.currentSwatch.setFillStyle(COLORS.panelBorder);
-    this.dish.setFillStyle(COLORS.panel);
+    this.currentSwatch.setFillStyle(COLORS.line);
+    this.paintPool.setVisible(false);
     this.unmixedLabel.setVisible(true);
   }
 
   private paintCurrentColor(color: RgbColor): void {
     this.displayedColor = color;
     this.currentSwatch.setFillStyle(toHex(color));
-    this.dish.setFillStyle(toHex(color));
+    this.paintPool.setFillStyle(toHex(color)).setVisible(true);
     this.unmixedLabel.setVisible(false);
   }
 
   private refreshControls(): void {
     const used = this.round.history.length;
+    this.dropDots.show(this.round.history);
     this.dropsText.setText(`使用 ${used} / ${MAX_DROPS}滴${used === MAX_DROPS ? '（上限）' : ''}`);
     this.undoText.setText(this.round.undoAvailable ? '取り消し：あと1回' : '取り消し：使用済み');
 

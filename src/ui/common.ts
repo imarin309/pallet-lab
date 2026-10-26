@@ -8,23 +8,41 @@ export const GAME_HEIGHT = 800;
 // こうしないと、高解像度の画面や PC で拡大表示されたときに図形も文字もぼやける
 export const RENDER_SCALE = 2;
 
+export const CHARACTER_TEXTURE = 'paintAnpan';
+
+// UI は無彩色だけで組む。周りに色があると、隣り合う色の見え方が変わってしまう（同時対比）ため。
+// 画面で色を持つのは絵の具とお題だけにする（DESIGN.md 2章）
 export const COLORS = {
-  background: 0x1e1e24,
-  panel: 0x2b2b35,
-  panelBorder: 0x4a4a58,
-  // 黒に近い色でも背景に溶けて面の境目が消えないよう、色見本には必ずこの枠を付ける
-  swatchBorder: 0x8a8a96,
-  text: '#f2f2f5',
-  subText: '#b4b4c0',
-  accent: 0x4f8cff,
-  disabled: 0x3a3a44,
+  paper: 0xf2f2f0,
+  surface: 0xffffff,
+  line: 0xd4d4d1,
+  // 美術や色校正で色を見比べるときの中間グレー（マンセル N6 前後）。黒に近い色も白に近い色も境目が見える
+  viewingStage: 0x8f8f8f,
+  chipMat: 0xffffff,
+  ink: 0x1f1f1f,
+  disabledFill: 0xe0e0dd,
 };
 
-const FONT_FAMILY = '"Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic", Meiryo, sans-serif';
+export const TEXT_COLORS = {
+  ink: '#1f1f1f',
+  subInk: '#5c5c5c',
+  onInk: '#ffffff',
+  disabled: '#9a9a9a',
+};
 
-export function textStyle(fontSize: number, color = COLORS.text): Phaser.Types.GameObjects.Text.TextStyle {
+const TYPEFACES = {
+  gothic: '"Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic", Meiryo, sans-serif',
+  mincho: '"Hiragino Mincho ProN", "Noto Serif JP", "Yu Mincho", serif',
+};
+type Typeface = keyof typeof TYPEFACES;
+
+export function textStyle(
+  fontSize: number,
+  color = TEXT_COLORS.ink,
+  typeface: Typeface = 'gothic',
+): Phaser.Types.GameObjects.Text.TextStyle {
   // カメラのズーム分だけ文字の解像度も上げないとにじむ
-  return { fontFamily: FONT_FAMILY, fontSize: `${fontSize}px`, color, resolution: RENDER_SCALE };
+  return { fontFamily: TYPEFACES[typeface], fontSize: `${fontSize}px`, color, resolution: RENDER_SCALE };
 }
 
 export function setupCamera(scene: Phaser.Scene): void {
@@ -35,10 +53,17 @@ export function toHex({ r, g, b }: RgbColor): number {
   return Phaser.Display.Color.GetColor(r, g, b);
 }
 
+type ButtonVariant = 'primary' | 'secondary';
+
+const BUTTON_LOOKS: Record<ButtonVariant, { fill: number; stroke: number; text: string }> = {
+  primary: { fill: COLORS.ink, stroke: COLORS.ink, text: TEXT_COLORS.onInk },
+  secondary: { fill: COLORS.surface, stroke: COLORS.ink, text: TEXT_COLORS.ink },
+};
+
 export class TextButton {
   private readonly background: Phaser.GameObjects.Rectangle;
   private readonly label: Phaser.GameObjects.Text;
-  private readonly fillColor: number;
+  private readonly variant: ButtonVariant;
   private enabled = true;
 
   constructor(
@@ -49,23 +74,23 @@ export class TextButton {
     height: number,
     text: string,
     onPress: () => void,
-    fillColor: number = COLORS.accent,
+    variant: ButtonVariant = 'primary',
   ) {
-    this.fillColor = fillColor;
-    this.background = scene.add
-      .rectangle(x, y, width, height, fillColor)
-      .setStrokeStyle(2, 0xffffff, 0.25)
-      .setInteractive({ useHandCursor: true });
+    this.variant = variant;
+    this.background = scene.add.rectangle(x, y, width, height).setRounded(12).setInteractive({ useHandCursor: true });
     this.label = scene.add.text(x, y, text, textStyle(24)).setOrigin(0.5);
     this.background.on('pointerdown', () => {
       if (this.enabled) onPress();
     });
+    this.setEnabled(true);
   }
 
   setEnabled(enabled: boolean): this {
     this.enabled = enabled;
-    this.background.setFillStyle(enabled ? this.fillColor : COLORS.disabled);
-    this.label.setAlpha(enabled ? 1 : 0.45);
+    const look = BUTTON_LOOKS[this.variant];
+    this.background.setFillStyle(enabled ? look.fill : COLORS.disabledFill);
+    this.background.setStrokeStyle(2, enabled ? look.stroke : COLORS.line);
+    this.label.setColor(enabled ? look.text : TEXT_COLORS.disabled);
     if (this.background.input) this.background.input.cursor = enabled ? 'pointer' : 'default';
     return this;
   }

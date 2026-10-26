@@ -6,6 +6,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { GameScene } from '../src/scenes/GameScene.ts';
 import { ResultScene } from '../src/scenes/ResultScene.ts';
 import { TitleScene } from '../src/scenes/TitleScene.ts';
+import { CHARACTER_TEXTURE } from '../src/ui/common.ts';
 
 // Phaser の更新で、型は通るのに実行時に壊れる退行を拾うためのテスト。描画結果までは見ない
 
@@ -17,6 +18,11 @@ beforeEach(() => {
   errors = [];
   vi.spyOn(console, 'error').mockImplementation((...args) => errors.push(args));
   window.addEventListener('error', recordError);
+  // jsdom には public/ を配信するサーバーがなく、画像の読み込みは何も言わずに失敗する。
+  // 手元でたまたま動いているサーバーに結果を左右されないよう、通信せずに空のテクスチャで代える
+  vi.spyOn(TitleScene.prototype, 'preload').mockImplementation(function (this: TitleScene) {
+    this.textures.addCanvas(CHARACTER_TEXTURE, document.createElement('canvas'));
+  });
   game = new Phaser.Game({
     type: Phaser.HEADLESS,
     banner: false,
