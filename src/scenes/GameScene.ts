@@ -11,22 +11,32 @@ import {
 } from '../domain/gameRules.ts';
 import { PIGMENT_COLORS, mixColor } from '../domain/paintMixing.ts';
 import { scoreColor } from '../domain/scoring.ts';
-import { STAGES, targetColorOf } from '../domain/stages.ts';
-import { type MixHistory, PIGMENTS, type Pigment, type RgbColor, type RoundState } from '../domain/types.ts';
+import { COURSES, STAGES_PER_RUN, pickStages, targetColorOf } from '../domain/stages.ts';
+import type { Difficulty, MixHistory, Pigment, RgbColor, RoundState, Stage } from '../domain/types.ts';
 import { COLORS, GAME_WIDTH, TEXT_COLORS, TextButton, setupCamera, textStyle, toHex } from '../ui/common.ts';
 import { DropDots } from '../ui/dropDots.ts';
 
-export type GameSceneData = { stageIndex: number; results: readonly RoundResult[] };
+/** 1回の通しプレイ。出題する5問は始めるときに決め、再挑戦しても変えない */
+export type GameSceneData = {
+  difficulty: Difficulty;
+  stages: readonly Stage[];
+  stageIndex: number;
+  results: readonly RoundResult[];
+};
 
 export type RoundResult = {
-  stageIndex: number;
+  stage: Stage;
   target: RgbColor;
   actual: RgbColor;
   history: MixHistory;
   score: number;
 };
 
-export type ResultSceneData = { result: RoundResult; results: readonly RoundResult[] };
+export type ResultSceneData = { run: GameSceneData; result: RoundResult };
+
+export function newRun(difficulty: Difficulty): GameSceneData {
+  return { difficulty, stages: pickStages(COURSES[difficulty].stages, STAGES_PER_RUN), stageIndex: 0, results: [] };
+}
 
 const PIGMENT_LABELS: Record<Pigment, string> = {
   red: '赤',
@@ -47,9 +57,10 @@ const SWATCH_SIZE = 180;
 const SWATCH_Y = 215;
 const DISH_Y = 395;
 const PIGMENT_ROWS_Y = [475, 565];
+const SINGLE_ROW_Y = 520;
 const PIGMENTS_PER_ROW = 6;
 const PIGMENT_SPACING = 76;
-// 12色を2段に並べても、スマホで指先（約44px）が収まる大きさを保つ
+// 6色ずつ2段に並べても、スマホで指先（約44px）が収まる大きさを保つ
 const PIGMENT_RADIUS = 28;
 const COLOR_TRANSITION_MS = 260;
 const DROP_FALL_MS = 220;
@@ -57,8 +68,8 @@ const DROP_FALL_MS = 220;
 type PigmentButton = { pigment: Pigment; circle: Phaser.GameObjects.Arc; label: Phaser.GameObjects.Text };
 
 export class GameScene extends Phaser.Scene {
-  private stageIndex = 0;
-  private results: readonly RoundResult[] = [];
+  private run!: GameSceneData;
+  private stage!: Stage;
   private round: RoundState = createRound();
   private target: RgbColor = { r: 0, g: 0, b: 0 };
   private leaving = false;
@@ -82,10 +93,10 @@ export class GameScene extends Phaser.Scene {
 
   // シーンは再挑戦のたびに同じインスタンスで再開されるので、状態はここで必ず初期化する
   init(data: GameSceneData): void {
-    this.stageIndex = data.stageIndex ?? 0;
-    this.results = data.results ?? [];
+    this.run = data;
+    this.stage = data.stages[data.stageIndex];
     this.round = createRound();
-    this.target = targetColorOf(STAGES[this.stageIndex]);
+    this.target = targetColorOf(this.stage);
     this.leaving = false;
     this.displayedColor = null;
     this.colorTween = undefined;
@@ -94,13 +105,13 @@ export class GameScene extends Phaser.Scene {
 
   create(): void {
     setupCamera(this);
-    const stage = STAGES[this.stageIndex];
+    const { difficulty, stages, stageIndex } = this.run;
 
-    this.add.text(24, 24, 'Palette Lab', textStyle(20, TEXT_COLORS.subInk, 'mincho'));
+    this.add.text(24, 24, `Palette Lab　${COURSES[difficulty].label}`, textStyle(20, TEXT_COLORS.subInk, 'mincho'));
     this.add
-      .text(GAME_WIDTH - 24, 24, `STAGE ${this.stageIndex + 1} / ${STAGES.length}`, textStyle(20, TEXT_COLORS.subInk))
+      .text(GAME_WIDTH - 24, 24, `STAGE ${stageIndex + 1} / ${stages.length}`, textStyle(20, TEXT_COLORS.subInk))
       .setOrigin(1, 0);
-    this.add.text(GAME_WIDTH / 2, 74, `お題：${stage.name}`, textStyle(26, TEXT_COLORS.ink, 'mincho')).setOrigin(0.5);
+    this.add.text(GAME_WIDTH / 2, 74, `お題：${this.stage.name}`, textStyle(26, TEXT_COLORS.ink, 'mincho')).setOrigin(0.5);
 
     this.createSwatches();
     this.add.ellipse(GAME_WIDTH / 2, DISH_Y, 300, 64, COLORS.surface).setStrokeStyle(2, COLORS.line);
@@ -133,10 +144,14 @@ export class GameScene extends Phaser.Scene {
   }
 
   private createPigmentButtons(): void {
-    const firstX = GAME_WIDTH / 2 - (PIGMENT_SPACING * (PIGMENTS_PER_ROW - 1)) / 2;
-    PIGMENTS.forEach((pigment, index) => {
+    const pigments = COURSES[this.run.difficulty].pigments;
+    const rowsY = pigments.length > PIGMENTS_PER_ROW ? PIGMENT_ROWS_Y : [SINGLE_ROW_Y];
+    pigments.forEach((pigment, index) => {
+      const row = Math.floor(index / PIGMENTS_PER_ROW);
+      const countInRow = Math.min(PIGMENTS_PER_ROW, pigments.length - row * PIGMENTS_PER_ROW);
+      const firstX = GAME_WIDTH / 2 - (PIGMENT_SPACING * (countInRow - 1)) / 2;
       const x = firstX + (index % PIGMENTS_PER_ROW) * PIGMENT_SPACING;
-      const y = PIGMENT_ROWS_Y[Math.floor(index / PIGMENTS_PER_ROW)];
+      const y = rowsY[row];
       const circle = this.add
         .circle(x, y, PIGMENT_RADIUS, toHex(PIGMENT_COLORS[pigment]))
         .setStrokeStyle(2, COLORS.ink, 0.3)
@@ -171,7 +186,7 @@ export class GameScene extends Phaser.Scene {
     const actual = mixColor(this.round.history);
     if (!actual) return;
     const result: RoundResult = {
-      stageIndex: this.stageIndex,
+      stage: this.stage,
       target: this.target,
       actual,
       history: this.round.history,
@@ -179,7 +194,7 @@ export class GameScene extends Phaser.Scene {
     };
     this.tweens.killAll();
     this.showColorImmediately(actual);
-    const data: ResultSceneData = { result, results: this.results };
+    const data: ResultSceneData = { run: this.run, result };
     this.time.delayedCall(250, () => this.scene.start('ResultScene', data));
   }
 

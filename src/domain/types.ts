@@ -15,6 +15,9 @@ export const PIGMENTS = [
 ] as const;
 export type Pigment = (typeof PIGMENTS)[number];
 
+export const DIFFICULTIES = ['beginner', 'intermediate', 'advanced'] as const;
+export type Difficulty = (typeof DIFFICULTIES)[number];
+
 export type RgbColor = { r: number; g: number; b: number };
 
 /** 追加した順に並ぶ。色の計算には内訳だけを使い、順番は取り消しのためだけに持つ */

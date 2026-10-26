@@ -1,11 +1,12 @@
 import Phaser from 'phaser';
 import { RANK_STARS, type Rank, rankForScore, summarizeRun } from '../domain/scoring.ts';
-import { STAGES } from '../domain/stages.ts';
+import { COURSES } from '../domain/stages.ts';
+import type { Difficulty } from '../domain/types.ts';
 import { CHARACTER_TEXTURE, COLORS, GAME_WIDTH, TEXT_COLORS, TextButton, setupCamera, textStyle, toHex } from '../ui/common.ts';
-import type { GameSceneData, RoundResult } from './GameScene.ts';
+import { type GameSceneData, type RoundResult, newRun } from './GameScene.ts';
 import { RANK_LABELS } from './ResultScene.ts';
 
-export type FinalResultSceneData = { results: readonly RoundResult[] };
+export type FinalResultSceneData = { difficulty: Difficulty; results: readonly RoundResult[] };
 
 // ヒントと同じく、何を足せばよいかの処方は書かない
 const RANK_COMMENTS: Record<Rank, string> = {
@@ -18,10 +19,13 @@ const RANK_COMMENTS: Record<Rank, string> = {
 const ROW_FIRST_Y = 112;
 const ROW_SPACING = 66;
 const CHIP_SIZE = 40;
+// 系統色名は長いものがあるので、色見本に重ならない幅まで縮める
+const NAME_MAX_WIDTH = 140;
 
 const starsOf = (rank: Rank) => '★'.repeat(RANK_STARS[rank]) + '☆'.repeat(3 - RANK_STARS[rank]);
 
 export class FinalResultScene extends Phaser.Scene {
+  private difficulty: Difficulty = 'beginner';
   private results: readonly RoundResult[] = [];
   private leaving = false;
 
@@ -30,6 +34,7 @@ export class FinalResultScene extends Phaser.Scene {
   }
 
   init(data: FinalResultSceneData): void {
+    this.difficulty = data.difficulty;
     this.results = data.results ?? [];
     this.leaving = false;
   }
@@ -37,7 +42,7 @@ export class FinalResultScene extends Phaser.Scene {
   create(): void {
     setupCamera(this);
 
-    this.add.text(GAME_WIDTH / 2, 48, '結果発表', textStyle(32, TEXT_COLORS.ink, 'mincho')).setOrigin(0.5);
+    this.add.text(GAME_WIDTH / 2, 48, `結果発表　${COURSES[this.difficulty].label}`, textStyle(32, TEXT_COLORS.ink, 'mincho')).setOrigin(0.5);
     this.results.forEach((result, index) => {
       this.createRow(result, ROW_FIRST_Y + index * ROW_SPACING);
     });
@@ -53,14 +58,14 @@ export class FinalResultScene extends Phaser.Scene {
       .text(290, 628, RANK_COMMENTS[rank], { ...textStyle(18), wordWrap: { width: 310, useAdvancedWrap: true }, align: 'center' })
       .setOrigin(0.5);
 
-    const restartData: GameSceneData = { stageIndex: 0, results: [] };
-    new TextButton(this, 130, 730, 190, 68, 'もう一度遊ぶ', () => this.goTo('GameScene', restartData), 'secondary');
+    new TextButton(this, 130, 730, 190, 68, 'もう一度遊ぶ', () => this.goTo('GameScene', newRun(this.difficulty)), 'secondary');
     new TextButton(this, 350, 730, 190, 68, 'タイトルへ', () => this.goTo('TitleScene'));
   }
 
-  private createRow({ stageIndex, target, actual, score }: RoundResult, y: number): void {
+  private createRow({ stage, target, actual, score }: RoundResult, y: number): void {
     this.add.rectangle(GAME_WIDTH / 2, y, 440, 56).setRounded(10).setFillStyle(COLORS.surface).setStrokeStyle(2, COLORS.line);
-    this.add.text(36, y, STAGES[stageIndex].name, textStyle(18)).setOrigin(0, 0.5);
+    const name = this.add.text(36, y, stage.name, textStyle(18)).setOrigin(0, 0.5);
+    name.setScale(Math.min(1, NAME_MAX_WIDTH / name.width));
     // 結果画面と同じく、お題と自分の色は中間グレーの台に並べて見比べる
     this.add.rectangle(232, y, 104, 48).setRounded(6).setFillStyle(COLORS.viewingStage);
     this.add.rectangle(206, y, CHIP_SIZE, CHIP_SIZE, toHex(target)).setStrokeStyle(2, COLORS.chipMat);

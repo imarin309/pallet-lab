@@ -4,7 +4,7 @@
 import Phaser from 'phaser';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { FinalResultScene } from '../src/scenes/FinalResultScene.ts';
-import { GameScene, type RoundResult } from '../src/scenes/GameScene.ts';
+import { GameScene, type GameSceneData, type RoundResult } from '../src/scenes/GameScene.ts';
 import { ResultScene } from '../src/scenes/ResultScene.ts';
 import { TitleScene } from '../src/scenes/TitleScene.ts';
 import { CHARACTER_TEXTURE } from '../src/ui/common.ts';
@@ -57,23 +57,25 @@ function press(scene: Phaser.Scene, label: string): void {
   target.emit('pointerdown');
 }
 
-it('タイトルから調色して結果を見て、次のステージへ進める', async () => {
-  press(await waitForScene('TitleScene'), 'スタート');
+it('タイトルで難易度を選んで調色し、結果を見て次のステージへ進める', async () => {
+  press(await waitForScene('TitleScene'), '中級');
 
   const gameScene = await waitForScene('GameScene');
   press(gameScene, '緑');
-  press(gameScene, '緑');
+  press(gameScene, '橙');
   press(gameScene, '水色');
   press(gameScene, '完成！');
 
   press(await waitForScene('ResultScene'), '次のステージ');
 
-  await vi.waitFor(() => expect(game.scene.getScene('GameScene').scene.settings.data).toMatchObject({ stageIndex: 1 }));
+  await vi.waitFor(() =>
+    expect(game.scene.getScene('GameScene').scene.settings.data).toMatchObject({ difficulty: 'intermediate', stageIndex: 1 }),
+  );
   expect(errors).toEqual([]);
 });
 
 it('5ステージを終えると結果発表へ進み、再挑戦した結果は最後のものだけが残る', async () => {
-  press(await waitForScene('TitleScene'), 'スタート');
+  press(await waitForScene('TitleScene'), '初級');
 
   const playOneDrop = async (label: string) => {
     const gameScene = await waitForScene('GameScene');
@@ -89,12 +91,17 @@ it('5ステージを終えると結果発表へ進み、再挑戦した結果は
 
   const finalScene = await waitForScene('FinalResultScene');
   const { results } = finalScene.scene.settings.data as { results: RoundResult[] };
-  expect(results.map((result) => result.stageIndex)).toEqual([0, 1, 2, 3, 4]);
+  const { stages } = game.scene.getScene('GameScene').scene.settings.data as GameSceneData;
+  expect(results.map((result) => result.stage)).toEqual(stages);
   expect(results[0].history).toEqual(['green']);
 
   press(finalScene, 'もう一度遊ぶ');
   await vi.waitFor(() =>
-    expect(game.scene.getScene('GameScene').scene.settings.data).toEqual({ stageIndex: 0, results: [] }),
+    expect(game.scene.getScene('GameScene').scene.settings.data).toMatchObject({
+      difficulty: 'beginner',
+      stageIndex: 0,
+      results: [],
+    }),
   );
   expect(errors).toEqual([]);
 });
