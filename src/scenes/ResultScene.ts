@@ -3,9 +3,10 @@ import { RANK_STARS, hintFor, rankForScore, type Rank } from '../domain/scoring.
 import { STAGES } from '../domain/stages.ts';
 import { CHARACTER_TEXTURE, COLORS, GAME_WIDTH, TEXT_COLORS, TextButton, setupCamera, textStyle, toHex } from '../ui/common.ts';
 import { DropDots } from '../ui/dropDots.ts';
-import type { GameSceneData, RoundResult } from './GameScene.ts';
+import type { GameSceneData, ResultSceneData, RoundResult } from './GameScene.ts';
+import type { FinalResultSceneData } from './FinalResultScene.ts';
 
-const RANK_LABELS: Record<Rank, string> = {
+export const RANK_LABELS: Record<Rank, string> = {
   MASTER: 'MASTER',
   EXPERT: 'EXPERT',
   APPRENTICE: 'APPRENTICE',
@@ -20,14 +21,16 @@ const bestScoreKey = (stageId: string) => `bestScore:${stageId}`;
 
 export class ResultScene extends Phaser.Scene {
   private result!: RoundResult;
+  private results: readonly RoundResult[] = [];
   private leaving = false;
 
   constructor() {
     super('ResultScene');
   }
 
-  init(data: RoundResult): void {
-    this.result = data;
+  init(data: ResultSceneData): void {
+    this.result = data.result;
+    this.results = data.results;
     this.leaving = false;
   }
 
@@ -99,16 +102,21 @@ export class ResultScene extends Phaser.Scene {
       },
     });
 
-    new TextButton(this, 130, 720, 190, 68, 'もう一度', () => this.goTo('GameScene', { stageIndex }), 'secondary');
+    // 再挑戦では今回の結果を積まないので、次へ進んだときの結果で上書きされる
+    const retryData: GameSceneData = { stageIndex, results: this.results };
+    const settled = [...this.results, this.result];
+    new TextButton(this, 130, 720, 190, 68, 'もう一度', () => this.goTo('GameScene', retryData), 'secondary');
     if (isLastStage) {
-      new TextButton(this, 350, 720, 190, 68, 'タイトルへ', () => this.goTo('TitleScene'));
+      const finalData: FinalResultSceneData = { results: settled };
+      new TextButton(this, 350, 720, 190, 68, '結果発表へ', () => this.goTo('FinalResultScene', finalData));
     } else {
-      new TextButton(this, 350, 720, 190, 68, '次のステージ', () => this.goTo('GameScene', { stageIndex: stageIndex + 1 }));
+      const nextData: GameSceneData = { stageIndex: stageIndex + 1, results: settled };
+      new TextButton(this, 350, 720, 190, 68, '次のステージ', () => this.goTo('GameScene', nextData));
     }
   }
 
   // ボタンの連打で遷移が二重に走らないようにする
-  private goTo(key: 'GameScene' | 'TitleScene', data?: GameSceneData): void {
+  private goTo(key: 'GameScene' | 'FinalResultScene', data: GameSceneData | FinalResultSceneData): void {
     if (this.leaving) return;
     this.leaving = true;
     this.scene.start(key, data);

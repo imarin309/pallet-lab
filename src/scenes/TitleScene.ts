@@ -62,7 +62,7 @@ export class TitleScene extends Phaser.Scene {
     new TextButton(this, GAME_WIDTH / 2, 732, 260, 68, 'スタート', () => {
       if (this.leaving) return;
       this.leaving = true;
-      const data: GameSceneData = { stageIndex: 0 };
+      const data: GameSceneData = { stageIndex: 0, results: [] };
       this.scene.start('GameScene', data);
     });
   }

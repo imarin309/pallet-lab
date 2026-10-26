@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { PIGMENT_COLORS, mixColor } from '../src/domain/paintMixing.ts';
-import { deltaE, hintFor, rankForScore, scoreColor } from '../src/domain/scoring.ts';
+import { deltaE, hintFor, rankForScore, scoreColor, summarizeRun } from '../src/domain/scoring.ts';
 import { STAGES, targetColorOf } from '../src/domain/stages.ts';
 import { PIGMENTS, type RgbColor } from '../src/domain/types.ts';
 
@@ -67,6 +67,17 @@ describe('rankForScore', () => {
     [0, 'RETRY'],
   ])('%i点は %s', (score, rank) => {
     expect(rankForScore(score)).toBe(rank);
+  });
+});
+
+describe('summarizeRun', () => {
+  it('合計点と満点を出す', () => {
+    expect(summarizeRun([100, 80, 60, 40, 20])).toMatchObject({ total: 300, maxTotal: 500 });
+  });
+
+  it('総合ランクは切り捨てた平均点で決める', () => {
+    expect(summarizeRun([90, 90, 90, 90, 89]).rank).toBe('EXPERT');
+    expect(summarizeRun([90, 90, 90, 90, 90]).rank).toBe('MASTER');
   });
 });
 

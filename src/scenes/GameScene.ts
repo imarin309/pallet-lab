@@ -16,7 +16,7 @@ import { type MixHistory, PIGMENTS, type Pigment, type RgbColor, type RoundState
 import { COLORS, GAME_WIDTH, TEXT_COLORS, TextButton, setupCamera, textStyle, toHex } from '../ui/common.ts';
 import { DropDots } from '../ui/dropDots.ts';
 
-export type GameSceneData = { stageIndex: number };
+export type GameSceneData = { stageIndex: number; results: readonly RoundResult[] };
 
 export type RoundResult = {
   stageIndex: number;
@@ -25,6 +25,8 @@ export type RoundResult = {
   history: MixHistory;
   score: number;
 };
+
+export type ResultSceneData = { result: RoundResult; results: readonly RoundResult[] };
 
 const PIGMENT_LABELS: Record<Pigment, string> = {
   red: '赤',
@@ -56,6 +58,7 @@ type PigmentButton = { pigment: Pigment; circle: Phaser.GameObjects.Arc; label: 
 
 export class GameScene extends Phaser.Scene {
   private stageIndex = 0;
+  private results: readonly RoundResult[] = [];
   private round: RoundState = createRound();
   private target: RgbColor = { r: 0, g: 0, b: 0 };
   private leaving = false;
@@ -80,6 +83,7 @@ export class GameScene extends Phaser.Scene {
   // シーンは再挑戦のたびに同じインスタンスで再開されるので、状態はここで必ず初期化する
   init(data: GameSceneData): void {
     this.stageIndex = data.stageIndex ?? 0;
+    this.results = data.results ?? [];
     this.round = createRound();
     this.target = targetColorOf(STAGES[this.stageIndex]);
     this.leaving = false;
@@ -175,7 +179,8 @@ export class GameScene extends Phaser.Scene {
     };
     this.tweens.killAll();
     this.showColorImmediately(actual);
-    this.time.delayedCall(250, () => this.scene.start('ResultScene', result));
+    const data: ResultSceneData = { result, results: this.results };
+    this.time.delayedCall(250, () => this.scene.start('ResultScene', data));
   }
 
   private playDropAnimation(pigment: Pigment): void {
