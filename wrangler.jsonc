@@ -3,5 +3,8 @@
   "name": "pallet-lab",
   "compatibility_date": "2026-10-13",
   // Worker のスクリプトは持たず、ビルド結果を静的ファイルとして配るだけ
-  "assets": { "directory": "./dist" }
+  "assets": { "directory": "./dist" },
+  // main 以外のブランチは Workers Builds が `wrangler preview` でデプロイし、この項目がないと失敗する。
+  // プレビューは本番の設定を引き継がないが、変数もバインディングも使っていないので空でよい
+  "previews": {}
 }
