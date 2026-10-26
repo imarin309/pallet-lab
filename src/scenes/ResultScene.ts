@@ -1,7 +1,8 @@
 import Phaser from 'phaser';
 import { RANK_STARS, hintFor, rankForScore, type Rank } from '../domain/scoring.ts';
 import { STAGES } from '../domain/stages.ts';
-import { COLORS, GAME_WIDTH, TextButton, setupCamera, textStyle, toHex } from '../ui/common.ts';
+import { CHARACTER_TEXTURE, COLORS, GAME_WIDTH, TEXT_COLORS, TextButton, setupCamera, textStyle, toHex } from '../ui/common.ts';
+import { DropDots } from '../ui/dropDots.ts';
 import type { GameSceneData, RoundResult } from './GameScene.ts';
 
 const RANK_LABELS: Record<Rank, string> = {
@@ -32,7 +33,7 @@ export class ResultScene extends Phaser.Scene {
 
   create(): void {
     setupCamera(this);
-    const { stageIndex, target, actual, score } = this.result;
+    const { stageIndex, target, actual, history, score } = this.result;
     const stage = STAGES[stageIndex];
     const isLastStage = stageIndex === STAGES.length - 1;
 
@@ -41,18 +42,19 @@ export class ResultScene extends Phaser.Scene {
     if (isNewBest) this.registry.set(bestScoreKey(stage.id), score);
 
     this.add
-      .text(GAME_WIDTH / 2, 40, `STAGE ${stageIndex + 1} / ${STAGES.length}`, textStyle(20, COLORS.subText))
+      .text(GAME_WIDTH / 2, 36, `STAGE ${stageIndex + 1} / ${STAGES.length}`, textStyle(20, TEXT_COLORS.subInk))
       .setOrigin(0.5);
-    this.add.text(GAME_WIDTH / 2, 76, stage.name, textStyle(28)).setOrigin(0.5);
+    this.add.text(GAME_WIDTH / 2, 70, stage.name, textStyle(28, TEXT_COLORS.ink, 'mincho')).setOrigin(0.5);
 
-    this.add.rectangle(GAME_WIDTH / 2, 215, 440, 240, COLORS.panel);
-    this.add.text(130, 118, 'お題の色', textStyle(18, COLORS.subText)).setOrigin(0.5);
-    this.add.text(350, 118, 'あなたの色', textStyle(18, COLORS.subText)).setOrigin(0.5);
-    this.add.rectangle(130, 225, SWATCH_SIZE, SWATCH_SIZE, toHex(target)).setStrokeStyle(2, COLORS.swatchBorder);
-    this.add.rectangle(350, 225, SWATCH_SIZE, SWATCH_SIZE, toHex(actual)).setStrokeStyle(2, COLORS.swatchBorder);
+    this.add.text(130, 106, 'お題の色', textStyle(18, TEXT_COLORS.subInk)).setOrigin(0.5);
+    this.add.text(350, 106, 'あなたの色', textStyle(18, TEXT_COLORS.subInk)).setOrigin(0.5);
+    this.add.rectangle(GAME_WIDTH / 2, 220, 440, 200).setRounded(12).setFillStyle(COLORS.viewingStage);
+    this.add.rectangle(130, 220, SWATCH_SIZE, SWATCH_SIZE, toHex(target)).setStrokeStyle(3, COLORS.chipMat);
+    this.add.rectangle(350, 220, SWATCH_SIZE, SWATCH_SIZE, toHex(actual)).setStrokeStyle(3, COLORS.chipMat);
+    new DropDots(this, 344).show(history);
 
-    const scoreText = this.add.text(GAME_WIDTH / 2, 395, '0', textStyle(80)).setOrigin(0.5);
-    const unitText = this.add.text(0, 418, '点', textStyle(26, COLORS.subText)).setOrigin(0, 0.5);
+    const scoreText = this.add.text(GAME_WIDTH / 2, 408, '0', textStyle(80)).setOrigin(0.5);
+    const unitText = this.add.text(0, 431, '点', textStyle(26, TEXT_COLORS.subInk)).setOrigin(0, 0.5);
     const showScore = (value: number) => {
       scoreText.setText(String(value));
       unitText.setX(scoreText.x + scoreText.width / 2 + 8);
@@ -62,21 +64,24 @@ export class ResultScene extends Phaser.Scene {
     const rank = rankForScore(score);
     const stars = RANK_STARS[rank];
     const revealed = [
-      this.add.text(GAME_WIDTH / 2, 478, '★'.repeat(stars) + '☆'.repeat(3 - stars), textStyle(44, '#ffd45c')).setOrigin(0.5),
-      this.add.text(GAME_WIDTH / 2, 522, RANK_LABELS[rank], textStyle(22)).setOrigin(0.5),
+      this.add.text(GAME_WIDTH / 2, 478, '★'.repeat(stars) + '☆'.repeat(3 - stars), textStyle(40)).setOrigin(0.5),
+      this.add.text(GAME_WIDTH / 2, 518, RANK_LABELS[rank], textStyle(22)).setOrigin(0.5),
+      // ヒントはキャラクターの吹き出しとして見せる（DESIGN.md「隣で一緒に色を見ている講師」）
+      this.add.image(64, 596, CHARACTER_TEXTURE).setDisplaySize(96, 96),
+      this.add.rectangle(290, 592, 340, 76).setRounded(14).setFillStyle(COLORS.surface).setStrokeStyle(2, COLORS.line),
       this.add
-        .text(GAME_WIDTH / 2, 574, hintFor(target, actual), {
-          ...textStyle(20),
-          wordWrap: { width: 420, useAdvancedWrap: true },
+        .text(290, 592, hintFor(target, actual), {
+          ...textStyle(18),
+          wordWrap: { width: 310, useAdvancedWrap: true },
           align: 'center',
         })
         .setOrigin(0.5),
       this.add
         .text(
           GAME_WIDTH / 2,
-          622,
+          654,
           isNewBest ? `自己ベスト ${score}点（更新！）` : `自己ベスト ${previousBest}点`,
-          textStyle(18, COLORS.subText),
+          textStyle(18, TEXT_COLORS.subInk),
         )
         .setOrigin(0.5),
     ];
@@ -94,7 +99,7 @@ export class ResultScene extends Phaser.Scene {
       },
     });
 
-    new TextButton(this, 130, 720, 190, 68, 'もう一度', () => this.goTo('GameScene', { stageIndex }), 0x5a5a6a);
+    new TextButton(this, 130, 720, 190, 68, 'もう一度', () => this.goTo('GameScene', { stageIndex }), 'secondary');
     if (isLastStage) {
       new TextButton(this, 350, 720, 190, 68, 'タイトルへ', () => this.goTo('TitleScene'));
     } else {
