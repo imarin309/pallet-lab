@@ -3,6 +3,7 @@
 // @vitest-environment-options {"resources":"usable"}
 import Phaser from 'phaser';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { formatRecipe } from '../src/domain/recipe.ts';
 import { FinalResultScene } from '../src/scenes/FinalResultScene.ts';
 import { GameScene, type GameSceneData, type RoundResult } from '../src/scenes/GameScene.ts';
 import { ResultScene } from '../src/scenes/ResultScene.ts';
@@ -71,6 +72,24 @@ it('タイトルで難易度を選んで調色し、結果を見て次のステ�
   await vi.waitFor(() =>
     expect(game.scene.getScene('GameScene').scene.settings.data).toMatchObject({ difficulty: 'intermediate', stageIndex: 1 }),
   );
+  expect(errors).toEqual([]);
+});
+
+it('答えを見ると、その問題には再挑戦できなくなる', async () => {
+  press(await waitForScene('TitleScene'), '初級');
+  const gameScene = await waitForScene('GameScene');
+  press(gameScene, '緑');
+  press(gameScene, '完成！');
+
+  const resultScene = await waitForScene('ResultScene');
+  const { result } = resultScene.scene.settings.data as { result: RoundResult };
+  press(resultScene, '答えを見る');
+  const texts = resultScene.children.list.filter((object) => object instanceof Phaser.GameObjects.Text);
+  expect(texts.some((text) => text.text.startsWith(`答え：${formatRecipe(result.stage.recipe)}`))).toBe(true);
+
+  press(resultScene, 'もう一度');
+  await new Promise((resolve) => setTimeout(resolve, 100));
+  expect(game.scene.getScenes(true).map((scene) => scene.scene.key)).toEqual(['ResultScene']);
   expect(errors).toEqual([]);
 });
 
