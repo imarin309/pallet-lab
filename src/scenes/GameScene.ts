@@ -10,6 +10,7 @@ import {
   undoLastDrop,
 } from '../domain/gameRules.ts';
 import { PIGMENT_COLORS, mixColor } from '../domain/paintMixing.ts';
+import { PIGMENT_LABELS } from '../domain/recipe.ts';
 import { scoreColor } from '../domain/scoring.ts';
 import { COURSES, STAGES_PER_RUN, pickStages, targetColorOf } from '../domain/stages.ts';
 import type { Difficulty, MixHistory, Pigment, RgbColor, RoundState, Stage } from '../domain/types.ts';
@@ -37,21 +38,6 @@ export type ResultSceneData = { run: GameSceneData; result: RoundResult };
 export function newRun(difficulty: Difficulty): GameSceneData {
   return { difficulty, stages: pickStages(COURSES[difficulty].stages, STAGES_PER_RUN), stageIndex: 0, results: [] };
 }
-
-const PIGMENT_LABELS: Record<Pigment, string> = {
-  red: '赤',
-  orange: '橙',
-  yellow: '黄',
-  yellowGreen: '黄緑',
-  green: '緑',
-  lightBlue: '水色',
-  blue: '青',
-  purple: '紫',
-  brown: '茶',
-  yellowOchre: '黄土色',
-  white: '白',
-  black: '黒',
-};
 
 const SWATCH_SIZE = 180;
 const SWATCH_Y = 215;
