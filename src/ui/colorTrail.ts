@@ -19,7 +19,8 @@ export class ColorTrail {
   private readonly lines: Phaser.GameObjects.Graphics;
   private readonly points: Phaser.GameObjects.Arc[] = [];
   private positions: Point[] = [];
-  private head: Point | null = null;
+  // 滴が着地するたびに呼ばれ、連打では動いている途中で次が来るので、目標ではなく画面上の位置から動かす
+  private displayedHead: Point | null = null;
   private moveTween?: Phaser.Tweens.Tween;
 
   constructor(scene: Phaser.Scene, project: (color: RgbColor) => Point) {
@@ -49,14 +50,15 @@ export class ColorTrail {
         .setPosition(this.positions[index].x, this.positions[index].y);
     });
 
-    const from = this.head;
+    const from = this.displayedHead;
     const to = this.positions[last] ?? null;
-    this.head = to;
     if (!from || !to) {
+      this.displayedHead = to;
       this.drawLines();
       return this;
     }
     const headPoint = this.points[last];
+    this.moveHead(headPoint, from);
     this.moveTween = this.scene.tweens.addCounter({
       from: 0,
       to: 1,
@@ -64,15 +66,17 @@ export class ColorTrail {
       ease: 'Sine.easeOut',
       onUpdate: (tween) => {
         const t = tween.getValue() ?? 1;
-        headPoint.setPosition(from.x + (to.x - from.x) * t, from.y + (to.y - from.y) * t);
-        this.drawLines();
+        this.moveHead(headPoint, { x: from.x + (to.x - from.x) * t, y: from.y + (to.y - from.y) * t });
       },
-      onComplete: () => {
-        headPoint.setPosition(to.x, to.y);
-        this.drawLines();
-      },
+      onComplete: () => this.moveHead(headPoint, to),
     });
     return this;
+  }
+
+  private moveHead(headPoint: Phaser.GameObjects.Arc, position: Point): void {
+    this.displayedHead = position;
+    headPoint.setPosition(position.x, position.y);
+    this.drawLines();
   }
 
   private drawLines(): void {
