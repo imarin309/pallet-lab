@@ -12,8 +12,17 @@ const WHITE_X = 0.95047;
 const WHITE_Y = 1.0;
 const WHITE_Z = 1.08883;
 
+function linearChannelToSrgb(value: number): number {
+  const c = value <= 0.0031308 ? value * 12.92 : 1.055 * value ** (1 / 2.4) - 0.055;
+  return Math.round(Math.min(255, Math.max(0, c * 255)));
+}
+
 function labF(t: number): number {
   return t > (6 / 29) ** 3 ? Math.cbrt(t) : t / (3 * (6 / 29) ** 2) + 4 / 29;
+}
+
+function labFInverse(t: number): number {
+  return t > 6 / 29 ? t ** 3 : 3 * (6 / 29) ** 2 * (t - 4 / 29);
 }
 
 export function rgbToLab({ r, g, b }: RgbColor): LabColor {
@@ -27,6 +36,27 @@ export function rgbToLab({ r, g, b }: RgbColor): LabColor {
   const fy = labF(y / WHITE_Y);
   const fz = labF(z / WHITE_Z);
   return { l: 116 * fy - 16, a: 500 * (fx - fy), b: 200 * (fy - fz) };
+}
+
+/** sRGB に収まらない色は、チャンネルごとに切り詰める */
+export function labToRgb({ l, a, b }: LabColor): RgbColor {
+  const fy = (l + 16) / 116;
+  const x = WHITE_X * labFInverse(fy + a / 500);
+  const y = WHITE_Y * labFInverse(fy);
+  const z = WHITE_Z * labFInverse(fy - b / 200);
+  return {
+    r: linearChannelToSrgb(3.2404542 * x - 1.5371385 * y - 0.4985314 * z),
+    g: linearChannelToSrgb(-0.969266 * x + 1.8760108 * y + 0.041556 * z),
+    b: linearChannelToSrgb(0.0556434 * x - 0.2040259 * y + 1.0572252 * z),
+  };
+}
+
+export function chromaOf({ a, b }: LabColor): number {
+  return Math.hypot(a, b);
+}
+
+export function hueAngle({ a, b }: LabColor): number {
+  return ((Math.atan2(b, a) * 180) / Math.PI + 360) % 360;
 }
 
 /** CIE76。CIEDE2000 より粗いが、式が短くテストで値を追いやすい */
@@ -81,7 +111,7 @@ export function hintFor(target: RgbColor, actual: RgbColor): string {
   const t = rgbToLab(target);
   const u = rgbToLab(actual);
   const lightness = u.l - t.l;
-  const chroma = Math.hypot(u.a, u.b) - Math.hypot(t.a, t.b);
+  const chroma = chromaOf(u) - chromaOf(t);
   const hue = Math.sqrt(Math.max(0, total ** 2 - lightness ** 2 - chroma ** 2));
 
   const degree = (value: number) => (Math.abs(value) < SLIGHT_DIFFERENCE ? '少し' : 'かなり');
@@ -95,12 +125,8 @@ export function hintFor(target: RgbColor, actual: RgbColor): string {
   return `目標より${hueShiftName(hueAngle(t), hueAngle(u))}寄りの色味になりました`;
 }
 
-function hueAngle({ a, b }: LabColor): number {
-  return ((Math.atan2(b, a) * 180) / Math.PI + 360) % 360;
-}
-
 // Lab の色相角に置いた目印。a/b 軸の符号で判定すると、オレンジが黄色寄りになっただけで「緑み」と出てしまう
-const HUE_ANCHORS: readonly { name: string; angle: number }[] = [
+export const HUE_ANCHORS: readonly { name: string; angle: number }[] = [
   { name: '赤', angle: 30 },
   { name: '黄色', angle: 90 },
   { name: '緑', angle: 140 },

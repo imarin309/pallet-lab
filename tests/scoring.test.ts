@@ -1,6 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { PIGMENT_COLORS, mixColor } from '../src/domain/paintMixing.ts';
-import { deltaE, hintFor, rankForScore, scoreColor, summarizeRun } from '../src/domain/scoring.ts';
+import {
+  chromaOf,
+  deltaE,
+  hintFor,
+  hueAngle,
+  labToRgb,
+  rankForScore,
+  rgbToLab,
+  scoreColor,
+  summarizeRun,
+} from '../src/domain/scoring.ts';
 import { COURSES, targetColorOf } from '../src/domain/stages.ts';
 import { DIFFICULTIES, type RgbColor } from '../src/domain/types.ts';
 
@@ -111,5 +121,35 @@ describe('hintFor', () => {
         expect(hintFor(a, b)).not.toMatch(/足/);
       }
     }
+  });
+});
+
+describe('labToRgb', () => {
+  it('rgbToLab の逆変換になる', () => {
+    for (const color of Object.values(PIGMENT_COLORS)) {
+      expect(labToRgb(rgbToLab(color))).toEqual(color);
+    }
+  });
+
+  it('sRGB に収まらない色も 0〜255 の整数に収める', () => {
+    const { r, g, b } = labToRgb({ l: 50, a: 0, b: -150 });
+    for (const channel of [r, g, b]) {
+      expect(Number.isInteger(channel)).toBe(true);
+      expect(channel).toBeGreaterThanOrEqual(0);
+      expect(channel).toBeLessThanOrEqual(255);
+    }
+  });
+});
+
+describe('hueAngle / chromaOf', () => {
+  it('赤・黄・緑・青が色相環をこの順に回る', () => {
+    const hues = (['red', 'yellow', 'green', 'blue'] as const).map((pigment) => hueAngle(rgbToLab(PIGMENT_COLORS[pigment])));
+    for (let i = 1; i < hues.length; i++) {
+      expect(hues[i]).toBeGreaterThan(hues[i - 1]);
+    }
+  });
+
+  it('灰色の彩度はほぼ0', () => {
+    expect(chromaOf(rgbToLab({ r: 128, g: 128, b: 128 }))).toBeLessThan(0.01);
   });
 });
